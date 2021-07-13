@@ -1,35 +1,56 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 )
 
+type Player struct {
+	Name string
+	Wins int
+}
+
 type PlayerServer struct {
 	Store PlayerStore
+	http.Handler
 }
 
 
 type PlayerStore interface {
 	GetPlayerScore(name string) string
 	RecordWin(name string)
+	GetLeague() []Player
 }
 
-func NewInMemoryPlayerStore() *InMemoryPlayerStore {
-	return &InMemoryPlayerStore{map[string]int{}}
+func NewPlayerServer(store PlayerStore) *PlayerServer {
+	ps := new(PlayerServer)
+	ps.Store = store
+	router := http.NewServeMux()
+	router.Handle("/league",http.HandlerFunc(ps.leagueHandler))
+	router.Handle("/players/",http.HandlerFunc(ps.playersHandler))
+	ps.Handler = router
+	return ps
 }
 
-type InMemoryPlayerStore struct {
-	store map[string]int
+
+
+func (ps *PlayerServer) leagueHandler(rw http.ResponseWriter, rq *http.Request){
+	leagueTable := ps.Store.GetLeague()
+	json.NewEncoder(rw).Encode(leagueTable)
+	rw.WriteHeader(http.StatusOK)
+	rw.Header().Set("content-type","application-json")
 }
 
-func (imp InMemoryPlayerStore) GetPlayerScore(name string) string{
-	return fmt.Sprintf("%d",imp.store[name])
+
+
+func (ps *PlayerServer) GetLeagueTable() []Player {
+	return ps.Store.GetLeague()
 }
-func (imp *InMemoryPlayerStore) RecordWin(name string) {
-	imp.store[name]++
-}
-func (ps *PlayerServer)ServeHTTP(rw http.ResponseWriter, rq *http.Request){
+
+
+
+func (ps *PlayerServer) playersHandler(rw http.ResponseWriter, rq *http.Request){
 	switch rq.Method {
 	case http.MethodGet:
 		ps.showCode(rw,rq)

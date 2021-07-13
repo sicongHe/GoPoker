@@ -10,7 +10,7 @@ import (
 
 func main() {
 	fmt.Println("开始开发简易HTTP服务器！")
-	server := &server2.PlayerServer{server2.NewInMemoryPlayerStore()}
+	server := server2.NewPlayerServer(server2.NewInMemoryPlayerStore())
 	if err := http.ListenAndServe(":5000",server); err!= nil {
 		log.Fatal("服务器启动失败")
 	}
