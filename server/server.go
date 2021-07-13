@@ -20,7 +20,7 @@ type PlayerServer struct {
 type PlayerStore interface {
 	GetPlayerScore(name string) string
 	RecordWin(name string)
-	GetLeague() []Player
+	GetLeague() League
 }
 
 func NewPlayerServer(store PlayerStore) *PlayerServer {

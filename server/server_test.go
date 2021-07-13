@@ -3,8 +3,11 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"testing"
 )
@@ -18,7 +21,7 @@ func TestPlayerServer(t *testing.T) {
 			"Nancy":"10",
 		},
 		nil,
-		[]Player{},
+		League{},
 	}
 	server := NewPlayerServer(store)
 	t.Run("返回Tom的游戏分数", func(t *testing.T) {
@@ -100,15 +103,13 @@ func TestLeague(t *testing.T) {
 	})
 }
 
-
-func assertJson(t *testing.T, got []Player, want []Player) {
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("got %#v , want %#v",got,want)
-	}
-}
-
 func TestRecordingWinsAndRetrievingThem(t *testing.T) {
-	server := NewPlayerServer(NewInMemoryPlayerStore())
+	database,cleanDatabase := createTempfile(t,`[
+            {"Name": "Cleo", "Wins": 10},
+            {"Name": "Chris", "Wins": 33}]`)
+	defer cleanDatabase()
+	store := NewFileSystemStore(database)
+	server:= NewPlayerServer(store)
 	player := "Apollo"
 	postPlayerServerTimes(server,player,3)
 	response := httptest.NewRecorder()
@@ -118,7 +119,9 @@ func TestRecordingWinsAndRetrievingThem(t *testing.T) {
 }
 
 func TestRecordingWinsAndRetrievingLeague(t *testing.T) {
-	store := NewInMemoryPlayerStore()
+	database,cleanDatabase := createTempfile(t,`[]`)
+	defer cleanDatabase()
+	store := NewFileSystemStore(database)
 	server:= NewPlayerServer(store)
 	player := "Tom"
 	postPlayerServerTimes(server,player,3)
@@ -134,6 +137,76 @@ func TestRecordingWinsAndRetrievingLeague(t *testing.T) {
 	assertResponseHeader(t,response,ContentType,ApplicationJson)
 	assertResponseStatus(t,response.Code,http.StatusOK)
 	assertJson(t,got,want)
+}
+
+func TestFileSystemStore(t *testing.T) {
+	t.Run("通过文件Reader获取/league的返回", func(t *testing.T) {
+		database,cleanDatabase := createTempfile(t,`[
+            {"Name": "Cleo", "Wins": 10},
+            {"Name": "Chris", "Wins": 33}]`)
+		defer cleanDatabase()
+		store := NewFileSystemStore(database)
+		got := store.GetLeague()
+		want := []Player{
+			{"Cleo",10},
+			{"Chris",33},
+		}
+		assertLeague(t,got,want)
+		// read again
+		got = store.GetLeague()
+		assertLeague(t, got, want)
+	})
+	t.Run("通过文件Reader获取 getPlayerScores", func(t *testing.T) {
+		database,cleanDatabase := createTempfile(t,`[
+            {"Name": "Cleo", "Wins": 10},
+            {"Name": "Chris", "Wins": 33}]`)
+		defer cleanDatabase()
+		store := NewFileSystemStore(database)
+		got := store.GetPlayerScore("Cleo")
+		want := "10"
+		assertString(t,got, want)
+	})
+	t.Run("为已有玩家添加一次胜利", func(t *testing.T) {
+		database,cleanDatabase := createTempfile(t,`[
+            {"Name": "Cleo", "Wins": 10},
+            {"Name": "Chris", "Wins": 33}]`)
+		defer cleanDatabase()
+		store := NewFileSystemStore(database)
+		store.RecordWin("Chris")
+		got := store.GetPlayerScore("Chris")
+		want := "34"
+		assertString(t,got, want)
+	})
+	t.Run("为新玩家添加胜利", func(t *testing.T) {
+		database,cleanDatabase := createTempfile(t,`[
+            {"Name": "Cleo", "Wins": 10},
+            {"Name": "Chris", "Wins": 33}]`)
+		defer cleanDatabase()
+		store := NewFileSystemStore(database)
+		store.RecordWin("Tom")
+		got := store.GetPlayerScore("Tom")
+		want := "1"
+		assertString(t,got, want)
+	})
+}
+
+func createTempfile(t *testing.T,initialData string) (io.ReadWriteSeeker,func()) {
+	t.Helper()
+	tmpfile,err := ioutil.TempFile("","db")
+	if err != nil {
+		t.Errorf("创建临时文件失败:%s",err.Error())
+	}
+	tmpfile.Write([]byte(initialData))
+	removeFile := func() {
+		os.Remove(tmpfile.Name())
+	}
+	return tmpfile,removeFile
+}
+
+func assertLeague(t *testing.T, got []Player, want []Player) {
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Got %#v,want %#v",got,want)
+	}
 }
 
 func postPlayerServerTimes(server *PlayerServer,player string,times int) {
@@ -158,6 +231,12 @@ func assertResponseHeader(t *testing.T,response *httptest.ResponseRecorder,key s
 	}
 }
 
+func assertJson(t *testing.T, got []Player, want []Player) {
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %#v , want %#v",got,want)
+	}
+}
+
 func assertErrShouldBeNil(t *testing.T,err error) {
 	if err != nil {
 		t.Errorf("err: %#v",err)
@@ -170,6 +249,7 @@ func assertString(t *testing.T,got string,want string){
 		t.Errorf("Got %s, Want %s",got, want)
 	}
 }
+
 func assertResponseStatus(t *testing.T,got int,want int) {
 	t.Helper()
 	if got!= want {
