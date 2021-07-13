@@ -5,19 +5,32 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
+	"sort"
 )
 
 type League []Player
 
 type FileSystemStore struct {
-	Database io.ReadWriteSeeker
+	Database *json.Encoder
 	league League
 }
 
-func NewFileSystemStore(database io.ReadWriteSeeker) *FileSystemStore {
+func NewFileSystemStore(database *os.File) (*FileSystemStore,error) {
 	database.Seek(0, 0)
-	league,_ := NewLeague(database)
-	return &FileSystemStore{database,league}
+	info,err := database.Stat()
+	if err!= nil {
+		return nil,fmt.Errorf("初始化FileSystem失败，错误信息: %s",err)
+	}
+	if info.Size() == 0 {
+		database.Write([]byte("[]"))
+		database.Seek(0, 0)
+	}
+	league,err := NewLeague(database)
+	if err!= nil {
+		return nil,fmt.Errorf("初始化FileSystem失败，错误信息: %s",err)
+	}
+	return &FileSystemStore{json.NewEncoder(&Tape{database}),league},nil
 }
 
 func (l League)Find(name string) *Player {
@@ -46,11 +59,13 @@ func (f *FileSystemStore) RecordWin(name string) {
 	} else{
 		player.Wins++
 	}
-	f.Database.Seek(0,0)
-	json.NewEncoder(f.Database).Encode(&(f.league))
+	f.Database.Encode(&(f.league))
 }
 
 func (f *FileSystemStore) GetLeague() League {
+	sort.Slice(f.league, func(i, j int) bool {
+		return f.league[i].Wins < f.league[j].Wins
+	})
 	return f.league
 }
 

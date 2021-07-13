@@ -13,7 +13,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("problem opening %s %v", dbFileName, err)
 	}
-	store := server.NewFileSystemStore(db)
+	store ,err:= server.NewFileSystemStore(db)
+	if err != nil {
+		log.Fatalf("服务器初始化失败 %s", err.Error())
+	}
 	server := server.NewPlayerServer(store)
 	if err := http.ListenAndServe(":5000", server); err != nil {
 		log.Fatalf("could not listen on port 5000 %v", err)

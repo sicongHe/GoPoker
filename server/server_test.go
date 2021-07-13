@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -108,7 +107,8 @@ func TestRecordingWinsAndRetrievingThem(t *testing.T) {
             {"Name": "Cleo", "Wins": 10},
             {"Name": "Chris", "Wins": 33}]`)
 	defer cleanDatabase()
-	store := NewFileSystemStore(database)
+	store,err:= NewFileSystemStore(database)
+	assertErrShouldBeNil(t,err)
 	server:= NewPlayerServer(store)
 	player := "Apollo"
 	postPlayerServerTimes(server,player,3)
@@ -119,20 +119,21 @@ func TestRecordingWinsAndRetrievingThem(t *testing.T) {
 }
 
 func TestRecordingWinsAndRetrievingLeague(t *testing.T) {
-	database,cleanDatabase := createTempfile(t,`[]`)
+	database,cleanDatabase := createTempfile(t,"[]")
 	defer cleanDatabase()
-	store := NewFileSystemStore(database)
+	store,err:= NewFileSystemStore(database)
+	assertErrShouldBeNil(t,err)
 	server:= NewPlayerServer(store)
 	player := "Tom"
 	postPlayerServerTimes(server,player,3)
 	response := httptest.NewRecorder()
-	request,_ := http.NewRequest(http.MethodGet,"/league", nil)
+	request,err := http.NewRequest(http.MethodGet,"/league", nil)
 	server.ServeHTTP(response,request)
 	var got []Player
 	want := []Player{
 		{"Tom",3},
 	}
-	err := json.NewDecoder(response.Body).Decode(&got)
+	err = json.NewDecoder(response.Body).Decode(&got)
 	assertErrShouldBeNil(t,err)
 	assertResponseHeader(t,response,ContentType,ApplicationJson)
 	assertResponseStatus(t,response.Code,http.StatusOK)
@@ -142,14 +143,14 @@ func TestRecordingWinsAndRetrievingLeague(t *testing.T) {
 func TestFileSystemStore(t *testing.T) {
 	t.Run("通过文件Reader获取/league的返回", func(t *testing.T) {
 		database,cleanDatabase := createTempfile(t,`[
-            {"Name": "Cleo", "Wins": 10},
-            {"Name": "Chris", "Wins": 33}]`)
+            {"Name": "Cleo", "Wins": 33},
+            {"Name": "Chris", "Wins": 10}]`)
 		defer cleanDatabase()
-		store := NewFileSystemStore(database)
+		store ,_:= NewFileSystemStore(database)
 		got := store.GetLeague()
 		want := []Player{
-			{"Cleo",10},
-			{"Chris",33},
+			{"Chris",10},
+			{"Cleo",33},
 		}
 		assertLeague(t,got,want)
 		// read again
@@ -161,7 +162,7 @@ func TestFileSystemStore(t *testing.T) {
             {"Name": "Cleo", "Wins": 10},
             {"Name": "Chris", "Wins": 33}]`)
 		defer cleanDatabase()
-		store := NewFileSystemStore(database)
+		store ,_:= NewFileSystemStore(database)
 		got := store.GetPlayerScore("Cleo")
 		want := "10"
 		assertString(t,got, want)
@@ -171,7 +172,7 @@ func TestFileSystemStore(t *testing.T) {
             {"Name": "Cleo", "Wins": 10},
             {"Name": "Chris", "Wins": 33}]`)
 		defer cleanDatabase()
-		store := NewFileSystemStore(database)
+		store ,_:= NewFileSystemStore(database)
 		store.RecordWin("Chris")
 		got := store.GetPlayerScore("Chris")
 		want := "34"
@@ -182,15 +183,21 @@ func TestFileSystemStore(t *testing.T) {
             {"Name": "Cleo", "Wins": 10},
             {"Name": "Chris", "Wins": 33}]`)
 		defer cleanDatabase()
-		store := NewFileSystemStore(database)
+		store ,_:= NewFileSystemStore(database)
 		store.RecordWin("Tom")
 		got := store.GetPlayerScore("Tom")
 		want := "1"
 		assertString(t,got, want)
 	})
+	t.Run("处理空文件", func(t *testing.T) {
+		database,cleanDatabase := createTempfile(t,"")
+		defer cleanDatabase()
+		_,err:= NewFileSystemStore(database)
+		assertErrShouldBeNil(t,err)
+	})
 }
 
-func createTempfile(t *testing.T,initialData string) (io.ReadWriteSeeker,func()) {
+func createTempfile(t *testing.T,initialData string) (*os.File,func()) {
 	t.Helper()
 	tmpfile,err := ioutil.TempFile("","db")
 	if err != nil {
@@ -204,6 +211,7 @@ func createTempfile(t *testing.T,initialData string) (io.ReadWriteSeeker,func())
 }
 
 func assertLeague(t *testing.T, got []Player, want []Player) {
+	t.Helper()
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("Got %#v,want %#v",got,want)
 	}
