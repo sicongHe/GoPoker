@@ -9,8 +9,8 @@ import (
 	"testing"
 )
 
-
-
+var ApplicationJson = "application-json"
+var ContentType = "content-type"
 func TestPlayerServer(t *testing.T) {
 	store := &StubPlayerStore{
 		map[string]string{
@@ -93,12 +93,8 @@ func TestLeague(t *testing.T) {
 		}
 		var got []Player
 		err := json.NewDecoder(response.Body).Decode(&got)
-		if err != nil {
-			t.Errorf("response: %s, err: %#v",response.Body,err)
-		}
-		if response.Header().Get("content-type") != "application-json" {
-			t.Errorf("response did not have content-type of application/json, got %v", response.Header())
-		}
+		assertErrShouldBeNil(t,err)
+		assertResponseHeader(t,response,ContentType,ApplicationJson)
 		assertResponseStatus(t,response.Code,http.StatusOK)
 		assertJson(t,got,want)
 	})
@@ -114,9 +110,7 @@ func assertJson(t *testing.T, got []Player, want []Player) {
 func TestRecordingWinsAndRetrievingThem(t *testing.T) {
 	server := NewPlayerServer(NewInMemoryPlayerStore())
 	player := "Apollo"
-	server.ServeHTTP(httptest.NewRecorder(),postNewRequest(player))
-	server.ServeHTTP(httptest.NewRecorder(),postNewRequest(player))
-	server.ServeHTTP(httptest.NewRecorder(),postNewRequest(player))
+	postPlayerServerTimes(server,player,3)
 	response := httptest.NewRecorder()
 	server.ServeHTTP(response,getNewRequest(player))
 	assertResponseStatus(t,response.Code,http.StatusOK)
@@ -127,9 +121,7 @@ func TestRecordingWinsAndRetrievingLeague(t *testing.T) {
 	store := NewInMemoryPlayerStore()
 	server:= NewPlayerServer(store)
 	player := "Tom"
-	server.ServeHTTP(httptest.NewRecorder(),postNewRequest(player))
-	server.ServeHTTP(httptest.NewRecorder(),postNewRequest(player))
-	server.ServeHTTP(httptest.NewRecorder(),postNewRequest(player))
+	postPlayerServerTimes(server,player,3)
 	response := httptest.NewRecorder()
 	request,_ := http.NewRequest(http.MethodGet,"/league", nil)
 	server.ServeHTTP(response,request)
@@ -138,14 +130,16 @@ func TestRecordingWinsAndRetrievingLeague(t *testing.T) {
 		{"Tom",3},
 	}
 	err := json.NewDecoder(response.Body).Decode(&got)
-	if err != nil {
-		t.Errorf("response: %s, err: %#v",response.Body,err)
-	}
-	if response.Header().Get("content-type") != "application-json" {
-		t.Errorf("response did not have content-type of application/json, got %v", response.Header())
-	}
+	assertErrShouldBeNil(t,err)
+	assertResponseHeader(t,response,ContentType,ApplicationJson)
 	assertResponseStatus(t,response.Code,http.StatusOK)
 	assertJson(t,got,want)
+}
+
+func postPlayerServerTimes(server *PlayerServer,player string,times int) {
+	for i := 0;i < times;i++ {
+		server.ServeHTTP(httptest.NewRecorder(),postNewRequest(player))
+	}
 }
 
 func getNewRequest(player string) *http.Request {
@@ -156,6 +150,18 @@ func getNewRequest(player string) *http.Request {
 func postNewRequest(player string) *http.Request {
 	request,_ := http.NewRequest(http.MethodPost,fmt.Sprintf("/players/%s",player),nil)
 	return request
+}
+
+func assertResponseHeader(t *testing.T,response *httptest.ResponseRecorder,key string,want string) {
+	if response.Header().Get(key) != want {
+		t.Errorf("response did not have content-type of application/json, got %v", response.Header())
+	}
+}
+
+func assertErrShouldBeNil(t *testing.T,err error) {
+	if err != nil {
+		t.Errorf("err: %#v",err)
+	}
 }
 
 func assertString(t *testing.T,got string,want string){
