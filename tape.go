@@ -1,4 +1,4 @@
-package server
+package poker
 
 import (
 	"os"

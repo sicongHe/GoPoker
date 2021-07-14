@@ -1,4 +1,4 @@
-package server
+package poker
 
 import (
 	"io/ioutil"
@@ -15,6 +15,6 @@ func TestTape_Write(t *testing.T) {
 		newFileContents, _ := ioutil.ReadAll(file)
 		got := string(newFileContents)
 		want := "abc"
-		assertString(t,got,want)
+		AssertString(t,got,want)
 	})
 }

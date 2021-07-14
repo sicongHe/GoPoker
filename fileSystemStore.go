@@ -1,10 +1,11 @@
-package server
+package poker
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"sort"
 )
@@ -13,7 +14,16 @@ type League []Player
 
 type FileSystemStore struct {
 	Database *json.Encoder
-	league League
+	league   League
+}
+
+func FileSystemPlayerStoreFromFile(name string) (*FileSystemStore, error) {
+	db, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE, 0666)
+	if err != nil {
+		log.Fatalf("problem opening %s %v", name, err)
+	}
+	store ,err:= NewFileSystemStore(db)
+	return store,err
 }
 
 func NewFileSystemStore(database *os.File) (*FileSystemStore,error) {
@@ -55,7 +65,7 @@ func (f *FileSystemStore) GetPlayerScore(name string) string {
 func (f *FileSystemStore) RecordWin(name string) {
 	player := f.league.Find(name)
 	if player == nil {
-		f.league = append(f.league,Player{name,1})
+		f.league = append(f.league, Player{name,1})
 	} else{
 		player.Wins++
 	}

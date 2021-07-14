@@ -1,4 +1,4 @@
-package server
+package poker
 
 import (
 	"encoding/json"
@@ -29,7 +29,7 @@ func TestPlayerServer(t *testing.T) {
 		response := httptest.NewRecorder()
 		server.ServeHTTP(response,request)
 		assertResponseStatus(t,response.Code,http.StatusOK)
-		assertString(t,response.Body.String(),"20")
+		AssertString(t,response.Body.String(),"20")
 	})
 	t.Run("返回Nancy的游戏分数", func(t *testing.T) {
 		player := "Nancy"
@@ -37,7 +37,7 @@ func TestPlayerServer(t *testing.T) {
 		response := httptest.NewRecorder()
 		server.ServeHTTP(response,request)
 		assertResponseStatus(t,response.Code,http.StatusOK)
-		assertString(t,response.Body.String(),"10")
+		AssertString(t,response.Body.String(),"10")
 	})
 	t.Run("用户不存在", func(t *testing.T) {
 		player := "Apollo"
@@ -96,7 +96,7 @@ func TestLeague(t *testing.T) {
 		var got []Player
 		err := json.NewDecoder(response.Body).Decode(&got)
 		assertErrShouldBeNil(t,err)
-		assertResponseHeader(t,response,ContentType,ApplicationJson)
+		assertResponseHeader(t,response, ContentType, ApplicationJson)
 		assertResponseStatus(t,response.Code,http.StatusOK)
 		assertJson(t,got,want)
 	})
@@ -113,9 +113,9 @@ func TestRecordingWinsAndRetrievingThem(t *testing.T) {
 	player := "Apollo"
 	postPlayerServerTimes(server,player,3)
 	response := httptest.NewRecorder()
-	server.ServeHTTP(response,getNewRequest(player))
+	server.ServeHTTP(response, getNewRequest(player))
 	assertResponseStatus(t,response.Code,http.StatusOK)
-	assertString(t,response.Body.String(),"3")
+	AssertString(t,response.Body.String(),"3")
 }
 
 func TestRecordingWinsAndRetrievingLeague(t *testing.T) {
@@ -135,7 +135,7 @@ func TestRecordingWinsAndRetrievingLeague(t *testing.T) {
 	}
 	err = json.NewDecoder(response.Body).Decode(&got)
 	assertErrShouldBeNil(t,err)
-	assertResponseHeader(t,response,ContentType,ApplicationJson)
+	assertResponseHeader(t,response, ContentType, ApplicationJson)
 	assertResponseStatus(t,response.Code,http.StatusOK)
 	assertJson(t,got,want)
 }
@@ -165,7 +165,7 @@ func TestFileSystemStore(t *testing.T) {
 		store ,_:= NewFileSystemStore(database)
 		got := store.GetPlayerScore("Cleo")
 		want := "10"
-		assertString(t,got, want)
+		AssertString(t,got, want)
 	})
 	t.Run("为已有玩家添加一次胜利", func(t *testing.T) {
 		database,cleanDatabase := createTempfile(t,`[
@@ -176,7 +176,7 @@ func TestFileSystemStore(t *testing.T) {
 		store.RecordWin("Chris")
 		got := store.GetPlayerScore("Chris")
 		want := "34"
-		assertString(t,got, want)
+		AssertString(t,got, want)
 	})
 	t.Run("为新玩家添加胜利", func(t *testing.T) {
 		database,cleanDatabase := createTempfile(t,`[
@@ -187,7 +187,7 @@ func TestFileSystemStore(t *testing.T) {
 		store.RecordWin("Tom")
 		got := store.GetPlayerScore("Tom")
 		want := "1"
-		assertString(t,got, want)
+		AssertString(t,got, want)
 	})
 	t.Run("处理空文件", func(t *testing.T) {
 		database,cleanDatabase := createTempfile(t,"")
@@ -219,7 +219,7 @@ func assertLeague(t *testing.T, got []Player, want []Player) {
 
 func postPlayerServerTimes(server *PlayerServer,player string,times int) {
 	for i := 0;i < times;i++ {
-		server.ServeHTTP(httptest.NewRecorder(),postNewRequest(player))
+		server.ServeHTTP(httptest.NewRecorder(), postNewRequest(player))
 	}
 }
 
@@ -251,7 +251,7 @@ func assertErrShouldBeNil(t *testing.T,err error) {
 	}
 }
 
-func assertString(t *testing.T,got string,want string){
+func AssertString(t *testing.T,got string,want string){
 	t.Helper()
 	if got!= want {
 		t.Errorf("Got %s, Want %s",got, want)

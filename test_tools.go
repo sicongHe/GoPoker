@@ -1,4 +1,4 @@
-package server
+package poker
 
 type StubPlayerStore struct {
 	Scores map[string] string
