@@ -1,3 +1,7 @@
+// Package poker
+//为WebServer和Cli应用程序提供支持的库程序
+//
+///*
 package poker
 
 import (

@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/siconghe/MyServer"
+	poker "github.com/siconghe/MyServer"
 	"log"
 	"os"
 )

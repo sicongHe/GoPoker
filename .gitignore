@@ -1,3 +1,4 @@
 .idea/
 cmd/webserver/game.db.json
 cmd/cli/game.db.json
+*.drawio
